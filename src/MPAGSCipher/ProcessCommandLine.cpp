@@ -60,24 +60,33 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
                 settings.outputFile = cmdLineArgs[i + 1];
                 ++i;
             }
-        } else if (cmdLineArgs[i] == "-k") {
-            // Handle cipher key option
-            // Next element is the key unless -k is the last argument
+        } else if (cmdLineArgs[i] == "--multi-cipher") {
+            // Handle multi-cipher option
+            // Next element is the number of ciphers to be used unless --multi-cipher is the last argument
             if (i == nCmdLineArgs - 1) {
-                std::cerr << "[error] -k requires a positive integer argument"
-                          << std::endl;
+                std::cerr
+                    << "[error] --multi-cipher requires a positive integer argument"
+                    << std::endl;
                 // Set the flag to indicate the error and terminate the loop
                 processStatus = false;
                 break;
             } else {
-                // Got the key, so assign the value and advance past it
-                settings.cipherKey.push_back(cmdLineArgs[i + 1]);
+                try {
+                    settings.nExpectedCiphers = std::stoul(cmdLineArgs[i + 1]);
+                    if (settings.nExpectedCiphers == 0) {
+                        throw std::invalid_argument(
+                            "Number of ciphers must be positive");
+                    }
+                    settings.cipherType.reserve(settings.nExpectedCiphers);
+                    settings.cipherKey.reserve(settings.nExpectedCiphers);
+                } catch (const std::exception& e) {
+                    std::cerr << "[error] invalid argument for --multi-cipher: "
+                              << e.what() << std::endl;
+                    processStatus = false;
+                    break;
+                }
                 ++i;
             }
-        } else if (cmdLineArgs[i] == "--encrypt") {
-            settings.cipherMode = CipherMode::Encrypt;
-        } else if (cmdLineArgs[i] == "--decrypt") {
-            settings.cipherMode = CipherMode::Decrypt;
         } else if (cmdLineArgs[i] == "-c") {
             // Handle cipher type option
             // Next element is the name of the cipher, unless -c is the last argument
@@ -103,6 +112,24 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
                 }
                 ++i;
             }
+        } else if (cmdLineArgs[i] == "-k") {
+            // Handle cipher key option
+            // Next element is the key unless -k is the last argument
+            if (i == nCmdLineArgs - 1) {
+                std::cerr << "[error] -k requires a positive integer argument"
+                          << std::endl;
+                // Set the flag to indicate the error and terminate the loop
+                processStatus = false;
+                break;
+            } else {
+                // Got the key, so assign the value and advance past it
+                settings.cipherKey.push_back(cmdLineArgs[i + 1]);
+                ++i;
+            }
+        } else if (cmdLineArgs[i] == "--encrypt") {
+            settings.cipherMode = CipherMode::Encrypt;
+        } else if (cmdLineArgs[i] == "--decrypt") {
+            settings.cipherMode = CipherMode::Decrypt;
         } else {
             // Have encoutered an unknown flag, output an error message,
             // set the flag to indicate the error and terminate the loop
@@ -115,7 +142,7 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
 
     // For backward compatibility we allow (for a single cipher) nothing to be
     // specified and default to using Caesar cipher and/or an empty string key
-    if (nExpectedCiphers == 1) {
+    if (settings.nExpectedCiphers == 1) {
         if (settings.cipherType.empty()) {
             settings.cipherType.push_back(CipherType::Caesar);
         }
@@ -127,9 +154,10 @@ bool processCommandLine(const std::vector<std::string>& cmdLineArgs,
     // Check that we have information on the expected number of ciphers
     const std::size_t nTypes{settings.cipherType.size()};
     const std::size_t nKeys{settings.cipherKey.size()};
-    if (nTypes != nExpectedCiphers || nKeys != nExpectedCiphers) {
-        std::cerr << "[error] expected types and keys for " << nExpectedCiphers
-                  << " ciphers\n"
+    if (nTypes != settings.nExpectedCiphers ||
+        nKeys != settings.nExpectedCiphers) {
+        std::cerr << "[error] expected types and keys for "
+                  << settings.nExpectedCiphers << " ciphers\n"
                   << "        but received " << nTypes << " types and " << nKeys
                   << " keys" << std::endl;
         processStatus = false;
