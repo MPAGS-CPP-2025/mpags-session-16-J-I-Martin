@@ -1,4 +1,5 @@
 #include "CaesarCipher.hpp"
+#include "CipherFactory.hpp"
 #include "CipherMode.hpp"
 #include "CipherType.hpp"
 #include "PlayfairCipher.hpp"
@@ -42,6 +43,8 @@ int main(int argc, char* argv[])
             << "                   Stdin will be used if not supplied\n\n"
             << "  -o FILE          Write processed text to FILE\n"
             << "                   Stdout will be used if not supplied\n\n"
+            << "  --multi-cipher   Use multiple ciphers in sequence, with the order of ciphers and keys determined \n"
+            << "                   by the order of -c and -k options eg --multi-cipher 3 -c caesar -k 10 -c caesar -k 18 -c vigenere -k somekeyorother\n\n"
             << "  -c CIPHER        Specify the cipher to be used to perform the encryption/decryption\n"
             << "                   CIPHER can be caesar, playfair, or vigenere - caesar is the default\n\n"
             << "  -k KEY           Specify the cipher KEY\n"
@@ -89,24 +92,23 @@ int main(int argc, char* argv[])
         }
     }
 
-    std::string outputText;
+    std::string outputText{inputText};
 
-    switch (settings.cipherType[0]) {
-        case CipherType::Caesar: {
-            // Run the Caesar cipher (using the specified key and encrypt/decrypt flag) on the input text
-            CaesarCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
-            break;
-        }
-        case CipherType::Playfair: {
-            PlayfairCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
-            break;
-        }
-        case CipherType::Vigenere: {
-            VigenereCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
-            break;
+    // Apply the cipher using the factory, for each cipher in cipherType and key in cipherKey
+    for (size_t i{0}; i < settings.nExpectedCiphers; ++i) {
+        if (settings.cipherMode == CipherMode::Encrypt) {
+            // if cipherMode is encrypt, apply in forward order
+            auto cipher = CipherFactory::makeCipher(settings.cipherType[i],
+                                                    settings.cipherKey[i]);
+
+            outputText = cipher->applyCipher(outputText, settings.cipherMode);
+        } else {
+            // if cipherMode is decrypt, apply in reverse order
+            auto cipher = CipherFactory::makeCipher(
+                settings.cipherType[settings.nExpectedCiphers - 1 - i],
+                settings.cipherKey[settings.nExpectedCiphers - 1 - i]);
+
+            outputText = cipher->applyCipher(outputText, settings.cipherMode);
         }
     }
 

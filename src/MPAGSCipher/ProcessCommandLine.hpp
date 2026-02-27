@@ -25,6 +25,8 @@ struct ProgramSettings {
     std::string inputFile;
     /// Name of the output file
     std::string outputFile;
+    /// Number of ciphers to be used in sequence (if --multi-cipher is used)
+    size_t nExpectedCiphers{1};
     /// Key to be used in encrypting/decrypting routine
     std::vector<std::string> cipherKey;
     /// Flag indicating which cipher to use (e.g. Caesar, Playfair, etc.)
